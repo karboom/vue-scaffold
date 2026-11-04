@@ -25,6 +25,7 @@ const common = {
     retry: '重试',
     empty: '暂无数据',
     requestCanceled: '请求已取消',
+    noValue: '—',
 } as const
 
 const error = {

@@ -8,6 +8,7 @@ import { test as base, expect, type Page, type WebSocketRoute } from '@playwrigh
 const profileJson = { id: 'u_1', name: '演示用户', email: 'demo@example.com', avatar: '' }
 const customersEmpty = { list: [], total: 0, page: 1, pageSize: 10 }
 // 详情/更新共用一条 URL 前缀：GET 回详情，PUT 把请求体并进详情回给页面
+// lastActive 带 +0800：与后端约定的形状一致，桩演"不带偏移"就等于没演真实契约
 const customerDetailJson = {
     id: 'c_1',
     name: '张三',
@@ -16,7 +17,7 @@ const customerDetailJson = {
     phone: '13800000000',
     sessions: 12,
     tickets: 3,
-    lastActive: '2026-01-01 10:00:00',
+    lastActive: '2026-01-01 10:00:00+0800',
     tags: ['重点客户'],
     remark: '演示备注',
 }

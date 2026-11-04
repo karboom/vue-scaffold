@@ -11,7 +11,7 @@ test.describe('界面语言', () => {
                 phone: '13800000000',
                 sessions: 10,
                 tickets: 2,
-                lastActive: '2026-10-28 10:00:00',
+                lastActive: '2026-10-28 10:00:00+0800',
             },
         ],
         total: 1,

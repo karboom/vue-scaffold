@@ -31,7 +31,9 @@ const seed: Real.CustomerDetail[] = mock
             },
         ],
     })
-    .list.map((item, index) => ({ ...item, id: `c_${index + 1}` }))
+    // 时间串与后端同形状：必须自带偏移。mock 若演"不带偏移"的宽松版本，
+    // 前端的偏移解析分支就永远没被跑过，坑留到联调那天才炸
+    .list.map((item, index) => ({ ...item, id: `c_${index + 1}`, lastActive: `${item.lastActive}+0800` }))
 
 const store = mock.createEntityStore<Real.CustomerDetail>(seed)
 

@@ -10,6 +10,7 @@ export const enUS: MessageSchema = {
         retry: 'Retry',
         empty: 'No data',
         requestCanceled: 'Request canceled',
+        noValue: '—',
     },
     layout: {
         search: 'Search',

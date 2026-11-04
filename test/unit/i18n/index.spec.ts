@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import { createAppI18n, localeOptions, persistLocale, resolveInitialLocale } from '@/i18n'
+import { createAppI18n, localeOptions, persistLocale, resolveInitialLocale, uiLocaleOf } from '@/i18n'
 import { sessionStore } from '@/store'
 import { zhCN } from '@/i18n/locales/zh-CN'
 import { enUS } from '@/i18n/locales/en-US'
@@ -77,5 +77,39 @@ describe('语言真源在 store', () => {
         // 实例是被驱动方：只有 app.vue 的 watcher 会写 i18n 与落盘
         expect(i18n.global.locale.value).toBe('zh-CN')
         expect(localStorage.getItem('locale')).toBe('zh-CN')
+    })
+})
+
+describe('时间与数字格式化', () => {
+    // 2026-11-05 14:23:45 +08:00
+    const at = new Date('2026-11-05T06:23:45.000Z')
+
+    // 时区钉死的意义就在这：进程时区（Node 常是 UTC）与浏览器不一致也不能改变输出，否则 SSR 与水合两个串
+    it('d() 的输出与进程时区无关', () => {
+        const i18n = createAppI18n('zh-CN')
+        const original = process.env.TZ
+        process.env.TZ = 'America/New_York'
+
+        const text = i18n.global.d(at, 'dateTime')
+        process.env.TZ = original
+
+        expect(text).toBe(i18n.global.d(at, 'dateTime'))
+        expect(text).toContain('14:23')
+    })
+
+    it('中英文各用自己的形状，指的是同一时刻', () => {
+        expect(createAppI18n('zh-CN').global.d(at, 'dateTime')).toContain('2026')
+        expect(createAppI18n('en-US').global.d(at, 'dateTime')).toContain('Nov')
+    })
+
+    it('n() 按语言分组计数', () => {
+        expect(createAppI18n('zh-CN').global.n(1234, 'decimal')).toBe('1,234')
+        expect(createAppI18n('en-US').global.n(1234, 'decimal')).toBe('1,234')
+    })
+
+    // Nuxt UI 自带文案（Drawer / Table / Toast 的 aria 与按钮）靠 UApp 注入官方词典，注入点只有一处
+    it('uiLocaleOf 给每种语言配上 Nuxt UI 词典', () => {
+        expect(uiLocaleOf('zh-CN').messages.drawer.close).toBe('关闭')
+        expect(uiLocaleOf('en-US').messages.drawer.close).toBe('Close')
     })
 })

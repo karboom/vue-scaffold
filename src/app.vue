@@ -2,7 +2,7 @@
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { sessionStore } from '@/store'
-import { persistLocale } from '@/i18n'
+import { persistLocale, uiLocaleOf } from '@/i18n'
 import * as log from '@/utils/log'
 
 /**
@@ -19,6 +19,9 @@ const pageTitle = computed(() => {
   const titleKey = String(route.meta.titleKey)
   return te(titleKey) ? t(titleKey) : t('common.appName')
 })
+
+// Nuxt UI 自带文案的词典：跟着语言真源走，注入点只有 UApp 这一处
+const uiLocale = computed(() => uiLocaleOf(local.value.locale))
 
 useHead({
   title: pageTitle,
@@ -38,8 +41,8 @@ watch(
 </script>
 
 <template>
-  <!-- UApp 是 Nuxt UI 的全局上下文（toast/modal） -->
-  <UApp>
+  <!-- UApp 是 Nuxt UI 的全局上下文（toast/modal），locale 决定组件自带文案的语言 -->
+  <UApp :locale="uiLocale">
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>

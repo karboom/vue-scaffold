@@ -23,7 +23,7 @@ test.describe('脚手架首页', () => {
                     phone: '13800000000',
                     sessions: 12,
                     tickets: 3,
-                    lastActive: '2026-01-01 10:00:00',
+                    lastActive: '2026-01-01 10:00:00+0800',
                 },
             ],
             total: 1,
@@ -40,6 +40,10 @@ test.describe('脚手架首页', () => {
         // ReadData 已进 success 分支：详情独有的字段与标签都上了屏
         await expect(drawer.getByText('重点客户')).toBeVisible()
         await expect(drawer.getByText('演示备注')).toBeVisible()
+
+        // 时间格式化发生在渲染层：带 +0800 的原始串按 zh-CN 形状显示，而不是把后端串直接摊给用户
+        await expect(drawer.getByText('10:00')).toBeVisible()
+        await expect(drawer.getByText('2026-01-01 10:00:00+0800')).toHaveCount(0)
 
         // 改等级 → 保存：updateCustomer 成功后抽屉自动收起并重拉列表
         // 选项面板挂在 body 的 portal 上，不在 dialog 子树里，只能从 page 取

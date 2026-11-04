@@ -19,6 +19,11 @@ meta:
         <UTable :data="data.list" :columns="columns" class="text-sm" :ui="{ tr: 'even:bg-elevated/50' }">
           <!-- 操作列：Button 是触点动效壳，真正的动作仍直接打到 store action -->
           <!-- Nuxt UI 的单元格插槽名是 `${列 id}-cell`，插槽参数即 TanStack 的 cell context -->
+          <!-- 时间列：后端给的是原始时间串，格式化发生在这里（渲染层），store 不存显示值 -->
+          <template #lastActive-cell="{ row }">
+            {{ activeText(row.original.lastActive) }}
+          </template>
+
           <template #actions-cell="{ row }">
             <Button>
               <UButton
@@ -65,11 +70,11 @@ meta:
               <dt class="text-muted">{{ t('pages.index.columns.level') }}</dt>
               <dd>{{ data.level }}</dd>
               <dt class="text-muted">{{ t('pages.index.columns.lastActive') }}</dt>
-              <dd>{{ data.lastActive }}</dd>
+              <dd>{{ activeText(data.lastActive) }}</dd>
               <dt class="text-muted">{{ t('pages.index.detail.sessions') }}</dt>
-              <dd>{{ data.sessions }}</dd>
+              <dd>{{ countText(data.sessions) }}</dd>
               <dt class="text-muted">{{ t('pages.index.detail.tickets') }}</dt>
-              <dd>{{ data.tickets }}</dd>
+              <dd>{{ countText(data.tickets) }}</dd>
               <dt class="text-muted">{{ t('pages.index.detail.tags') }}</dt>
               <dd class="flex flex-wrap gap-1">
                 <UBadge v-for="tag in data.tags" :key="tag" color="neutral" variant="subtle" :label="tag" />
@@ -116,11 +121,12 @@ import type { ColumnDef } from '@tanstack/vue-table'
 import type { CustomerItem } from '@/api/types/customer'
 import { indexStore, levelOptions } from './store'
 import * as log from '@/utils/log'
+import * as time from '@/utils/time'
 
 const indexPage = indexStore('index')()
 const { local, remote, pickedLevel } = storeToRefs(indexPage)
 
-const { t } = useI18n()
+const { t, d, n } = useI18n()
 
 // 列定义走 computed：header 是译文快照，ref 会让切语言后表头留在旧语言
 const columns = computed<ColumnDef<CustomerItem, unknown>[]>(() => [
@@ -141,6 +147,18 @@ const apiModeTextMap = new Map<boolean, string>([
 ])
 
 const mockTip = computed(() => t(apiModeTextMap.get(import.meta.env.VITE_API_MOCK == 'on')!))
+
+/**
+ * 时间与数量在渲染层格式化：store 与 api 只存后端原值。
+ * 格式化串一旦写进 state 就会被 SSR 烙进 payload，之后切语言、调格式都不会回头重算——
+ * 这与"存 key 不存译文"是同一条纪律
+ */
+const activeText = (value: string): string => {
+  const at = time.parseDateTime(value)
+  return at ? d(at, 'dateTime') : t('common.noValue')
+}
+
+const countText = (value: number): string => n(value, 'decimal')
 
 // region 生命周期
 onMounted(() => {
