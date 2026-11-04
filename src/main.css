@@ -1,0 +1,3 @@
+/* tailwind v4 + Nuxt UI 主题（CSS-first，无 tailwind.config） */
+@import 'tailwindcss';
+@import '@nuxt/ui';

@@ -1,0 +1,60 @@
+{
+  "name": "vue-scaffold",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "postinstall": "nuxt prepare",
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "generate": "nuxt generate",
+    "preview": "PORT=${PORT:-3173} node .output/server/index.mjs",
+    "typecheck": "nuxt typecheck",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
+    "test:e2e": "npm run build && playwright test",
+    "test:e2e:ui": "npm run build && playwright test --ui",
+    "test:e2e:report": "playwright show-report",
+    "lint": "eslint . --fix",
+    "format": "prettier --write src/ test/",
+    "format:check": "prettier --check src/ test/"
+  },
+  "dependencies": {
+    "@iconify-json/lucide": "^1.2.148",
+    "@nuxt/ui": "^4.12.0",
+    "@tanstack/vue-table": "^8.21.3",
+    "axios": "^1.20.0",
+    "lodash": "^4.17.21",
+    "pinia": "^4.1.0",
+    "socket.io-client": "^4.8.1",
+    "tailwindcss": "^4.3.3",
+    "valibot": "^1.5.0",
+    "vue": "^3.5.42",
+    "vue-i18n": "^11.4.16",
+    "vue-router": "^5.3.0"
+  },
+  "devDependencies": {
+    "@pinia/nuxt": "^1.0.3",
+    "@playwright/test": "^1.64.1",
+    "@types/jsdom": "^21.1.1",
+    "@types/lodash": "^4.17.25",
+    "@types/mockjs": "^1.0.10",
+    "@types/node": "^24.19.2",
+    "@vue/eslint-config-prettier": "^10.2.0",
+    "@vue/eslint-config-typescript": "^14.9.0",
+    "@vue/tsconfig": "^0.9.1",
+    "eslint": "^10.9.1",
+    "eslint-plugin-vue": "^10.10.0",
+    "jsdom": "^26.1.0",
+    "mockjs": "^1.1.0",
+    "nuxt": "^4.6.3",
+    "prettier": "^3.0.0",
+    "typescript": "~5.9",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11",
+    "vue-tsc": "^3.3.11"
+  }
+}

@@ -1,0 +1,16 @@
+# 构建产物与依赖：不参与格式化
+node_modules
+dist
+.nuxt
+.output
+coverage
+test-results
+playwright-report
+
+# agent skills 的模板里带故意的占位符（@/api/xxx 并不存在），格式化会把它改得面目全非
+.agents
+.aider-desk
+.codegraph
+
+# 文档表格靠手工对齐，重排只会制造噪声
+*.md

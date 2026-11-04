@@ -1,0 +1,15 @@
+node_modules
+dist
+.nuxt
+.output
+coverage
+.git
+.idea
+test
+# deploy 不能排除：runtime-static 目标要从这里取 nginx.conf
+.aider*
+.agents
+*.log
+npm-debug.log*
+# 构建期配置走 build-arg，避免本地 .env 进入镜像
+.env*
