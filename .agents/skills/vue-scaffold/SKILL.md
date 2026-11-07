@@ -20,6 +20,7 @@ description: 写代码前必须遵循规范要求
 * store中的IOState对应的数据渲染，都要增加loading状态和空状态展示
 
 # 样式
+颜色采用hls描述
 
 # Vue组件
 * 使用vue3写法

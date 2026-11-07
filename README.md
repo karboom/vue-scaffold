@@ -4,6 +4,7 @@
 
 **Vue 3 + Nuxt 4 + Pinia + Nuxt UI 的中后台脚手架**。单宿主 Nuxt，页面、组件、store、API 全在 `src/` 一个目录里。
 
+- 🚀 **先原型，后真实**：`VITE_API_MOCK=on` 时纯前端就能跑通全站交互给业务方看；方向定下来后逐域补 `src/api/real/*`，关掉开关即切换，页面与 store 一行不动
 - 🧩 **交互方式组件封装**（`action/*`）：抽屉、确认框、数据区形态都封在组件里，改一处即全站换姿势（例：详情从右侧抽屉改弹窗，页面不动）
 - 🏗 **一套代码两种渲染**：默认 `ssr: true`（首屏 SSR + 站内 CSR）；翻成 `ssr: false` 就退回 SPA，页面写法不变
 - 🤖 **AI 友好**：约定是文件、类型是合约、mock 是运行时，Agent 改完能自证
@@ -87,6 +88,23 @@ src/（页面 / 组件 / store / api / i18n / utils）
 
 反面做法是一维 status 枚举再拼 `refreshing`、`firstLoad` 等布尔位，组合一多语义就漂移。组合表见 [IOCtx 请求状态机](#ioctx-请求状态机)。
 
+### 🚀 从原型到真实项目
+
+原型期真正要解决的三件事——快速搭出可点的界面、没有后端也能演示、结论随时可能被推翻——分别由三处内置能力接住：mock 是运行时（`respond` 注入 `delay` / `fail`，空态和错误态不用等后端排期就能演）、交互姿势封在 `action/*`（推翻一个交互决定是一处改动，不是全站返工）、新页面照 `pages/index` 的链路抄（store 工厂 + `local` / `remote` 分区 + `IOCtx`）。
+
+所以这个脚手架适合先把原型跑给业务方看，方向定下来再长成真实项目。升级不是重写，而是逐域替换与补齐：
+
+| 要动的 | 怎么做 | 不需要动的 |
+|---|---|---|
+| 接口实现 | `types/<domain>.ts` 先行，补 `real/<domain>.ts`，mock 跟着同签名改（`typeof Real.fn` 会在校验） | 页面与 store：仍从 `@/api/<domain>` 导入，不感知实现 |
+| 数据来源 | `VITE_API_MOCK=off`、`VITE_API_BASE` 指真后端 | `http` 实例与 handler：token 注入、401、遥测已在 `plugins/http.ts` 注册 |
+| 权限 | 原型期靠 `meta.requiresAuth` + `auth.global.ts` 拦；接真实 roles 时改这一处 | 路由与菜单结构：`labelKey` / `titleKey` 存的是 key，不是译文 |
+| 可观测 | 配 `VITE_LOG_REPORT_URL`，`log.error` 自动批量上报到监控 | 业务代码里已有的 `log.*` 调用 |
+| 首屏 | 逐页把取数从 `onMounted` 迁到 `callOnce` | `ReadData :io` 契约与页面模板 |
+| 测试 | e2e 的 `mockApi` 按域逐个换成真实接口 | 用例结构与 `seed` 夹具、视觉基线的锚点写法 |
+
+要留心的是另一头：原型期为了快而绕过约定的代码，升级时全变成返工点——业务文件直连 mock（`app/no-mock-imports` 拦）、把 `t()` 的结果存进 state（切语言不刷新）、`new Date(后端串)`（Safari 直接 `Invalid Date`）。闸门在的就这几处，绕过去等于把成本推到上线前。
+
 ## 快速开始
 
 要求 Node 24+（见 `package.json` 的 `engines`，Docker 构建用 `node:24`）。
@@ -153,7 +171,7 @@ src/                # 页面、组件、store、api、适配层都在这里
 public/             # 原样拷到产物根目录（favicon 等）
 .agents/skills/     # 约定真源：vue-scaffold/SKILL.md
 .aider-desk/skills  # 手工软链：ln -s ../.agents/skills .aider-desk/skills（.aider* 不入库）
-test/               # unit/ Vitest｜e2e/ Playwright（fixtures.ts + *.spec.ts）
+test/               # unit/ Vitest｜e2e/ Playwright（fixtures.ts + *.spec.ts + visual/ 快照基线）
 docs/llm-review.md  # LLM 评审打分与可复现 prompt
 deploy/             # 三份 Dockerfile + nginx.conf + 发布脚本
 ```
@@ -482,11 +500,21 @@ test/e2e/not-found.spec.ts        # 404 兜底页
 test/e2e/logout.spec.ts           # 退出登录跳转
 test/e2e/locale.spec.ts           # 中英切换：文案 / 标题 / html lang / 持久化
 test/e2e/chat.spec.ts             # AI 聊天：信封 ack 历史 + routeWebSocket 桩流式回复
+test/e2e/visual/pages.spec.ts     # 视觉回归基线（login / 列表 / 详情抽屉 / 聊天 / 404）
 ```
 
 - 单测由 `vitest.config.ts` 收集，`@/platform` 直接吃浏览器默认实现，不经 Nuxt 插件。
 - e2e 由 `playwright.config.ts` 驱动，被测对象必须是构建产物：`npm run build` 后起 Nitro server（`E2E_PORT` 可换端口，避免撞上常驻 dev server）。`test/e2e` 用独立 tsconfig。
 - Playwright config 已把 context locale 钉为 `zh-CN`，seed 再落一次，用例不随运行环境语言漂移。
+
+### 视觉回归
+
+用 Playwright 自带的 `toHaveScreenshot()` 快照对比，不引第三方服务。`visual` project 与功能用例分目录（`test/e2e/visual/`），功能用例改动不牵动基线图片。
+
+- **为什么稳定**：e2e 跑构建产物 + `page.route` 桩喂固定数据，viewport/locale 钉死；config 里 `animations: 'disabled'`、`caret: 'hide'` 冻结动画与光标，`maxDiffPixelRatio: 0.01` 容忍字体抗锯齿噪声；`visual` project `retries: 0`——快照抖了该修稳定性，不该靠重试蒙混。
+- **写用例**：复用 `fixtures.ts` 的 `seed` + `mockApi`；拍之前等内容锚点可见（表格行、气泡文本、抽屉里的独有字段），聊天页要 poll 到流式 `done` 收口，动画中间帧绝不进基线。有动态内容（相对时间之类）用 `mask` 遮掉。
+- **流程**：改动样式后 `npm run test:visual` 校验，失败会产出 expected/actual/diff 三张图；确认是有意变更再 `npm run test:visual:update` 重生成基线，人工 review 图片后随代码一起提交。
+- **环境一致性**：基线对 OS 字体渲染敏感（快照名带 `-linux` 后缀）。生成与校验必须在同一镜像内进行——CI 用官方 `mcr.microsoft.com/playwright` 镜像跑 `npx playwright test --project=visual`；本地 OS 与 CI 不一致时只在 CI 里更新基线。
 
 ## 脚本与环境变量
 
@@ -500,6 +528,7 @@ test/e2e/chat.spec.ts             # AI 聊天：信封 ack 历史 + routeWebSock
 | `npm run test:unit` / `test:unit:watch` | Vitest 单次执行 / watch |
 | `npm run test:e2e` | `build` + Playwright（对 Nitro server 跑用例） |
 | `npm run test:e2e:ui` / `test:e2e:report` | Playwright UI 模式 / 报告 |
+| `npm run test:visual` / `test:visual:update` | 视觉回归校验 / 重生成基线（均需先有构建产物） |
 | `npm run lint` / `format` / `format:check` | ESLint（含 --fix）/ Prettier 写入 / Prettier 只检查（CI 闸门用这个） |
 
 环境变量参考 `.env.example`（开发环境 `.env.development` 默认 `VITE_API_MOCK=on`）：
