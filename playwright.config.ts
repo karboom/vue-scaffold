@@ -11,6 +11,16 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: 'list',
+  expect: {
+    toHaveScreenshot: {
+      // 冻结 CSS 动画/过渡：过渡中间帧进基线必抖
+      animations: 'disabled',
+      // 输入框光标 530ms 闪一次，落在"亮"还是"灭"纯看时机
+      caret: 'hide',
+      // 字体抗锯齿级噪声容忍，结构性变化远超这个量
+      maxDiffPixelRatio: 0.01,
+    },
+  },
   use: {
     baseURL: `http://localhost:${port}`,
     trace: 'on-first-retry',
@@ -20,11 +30,23 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
+      testIgnore: '**/visual/**',
       use: {
         ...devices['Desktop Chrome'],
         // Nuxt UI 侧边栏是 lg(1024px) 断点才显示，Desktop Chrome 默认 720 高会压缩布局
         viewport: { width: 1280, height: 800 },
         // 钉住浏览器语言：i18n 会跟随 navigator.language，避免用例随运行环境语言漂移
+        locale: 'zh-CN',
+      },
+    },
+    {
+      name: 'visual',
+      testMatch: '**/visual/**/*.spec.ts',
+      // 快照抖动该修稳定性，不该靠重试蒙混——重试通过率一旦掺水，基线就失去意义
+      retries: 0,
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1280, height: 800 },
         locale: 'zh-CN',
       },
     },
