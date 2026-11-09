@@ -529,7 +529,8 @@ test/e2e/visual/pages.spec.ts     # 视觉回归基线（login / 列表 / 详情
 | `npm run test:e2e` | `build` + Playwright（对 Nitro server 跑用例） |
 | `npm run test:e2e:ui` / `test:e2e:report` | Playwright UI 模式 / 报告 |
 | `npm run test:visual` / `test:visual:update` | 视觉回归校验 / 重生成基线（均需先有构建产物） |
-| `npm run lint` / `format` / `format:check` | ESLint（含 --fix）/ Prettier 写入 / Prettier 只检查（CI 闸门用这个） |
+| `npm run lint` / `lint:fix` | ESLint 只检查（CI 闸门用这个）/ ESLint 自动修复 |
+| `npm run format` / `format:check` | Prettier 写入 / Prettier 只检查（CI 闸门用这个） |
 
 环境变量参考 `.env.example`（开发环境 `.env.development` 默认 `VITE_API_MOCK=on`）：
 

@@ -13,12 +13,18 @@ import type { UserConfig } from 'vite'
 
 const blockRE = /<route lang="yaml">([\s\S]*?)<\/route>/
 // 页面目录里的 store.ts 是状态定义，不是页面：Nuxt 的扫描会把它生成 /store 之类的野路由
-const nonPageRE = /(^|\/)store\.ts$/
+// 分隔符同时认 \：Windows 下 page.file 是反斜杠绝对路径
+const nonPageRE = /(^|[\/\\])store\.ts$/
 
 type RouteBlock = { path?: string; meta?: Record<string, string | boolean> }
 
-/** 解析限定在本脚手架块形状：顶层 path + meta 两级标量（true/false/字符串） */
-const parseRouteBlock = (raw: string): RouteBlock | null => {
+/**
+ * 解析限定在本脚手架块形状：顶层 path + meta 两级标量（true/false/字符串）。
+ * 行切分必须吃掉 \r：JS 正则里 `.` 不匹配 \r 而 `\s*` 会——Windows 检出（autocrlf）
+ * 下 "meta:" 行因 \r 被 `\s*` 吞掉而命中顶层分支，带值的 "  key: value\r" 却整体失配，
+ * 要么抛"无法解析"、要么静默丢 path。
+ */
+export const parseRouteBlock = (raw: string): RouteBlock | null => {
     const matched = blockRE.exec(raw)
     if (!matched) {
         return null
@@ -26,7 +32,7 @@ const parseRouteBlock = (raw: string): RouteBlock | null => {
     const block: RouteBlock = { meta: {} }
     const blockText = matched[1] ?? ''
     let inMeta = false
-    for (const line of blockText.split('\n')) {
+    for (const line of blockText.split(/\r\n?|\n/)) {
         if (!line.trim()) {
             continue
         }
