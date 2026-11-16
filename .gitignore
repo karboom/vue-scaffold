@@ -221,6 +221,8 @@ blob-report/
 # Nuxt 构建产物
 .nuxt/
 .output/
+# 联邦 provider 产物快照（build:mf 生成，e2e 双服务矩阵的静态侧）
+.mf-dist/
 
 .codegraph
 test/e2e/visual/pages.spec.ts-snapshots/

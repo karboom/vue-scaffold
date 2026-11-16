@@ -2,6 +2,8 @@ import { defineConfig, devices } from '@playwright/test'
 
 // 端口可覆盖：本地 `npm run dev` 常年占着 3173，e2e 换端口跑就不会误测到 dev server
 const port = Number(process.env.E2E_PORT ?? 3173)
+// 联邦 provider 静态服务端口：宿主通过 NUXT_PUBLIC_MF_HOSTS 指向它
+const mfPort = Number(process.env.E2E_MF_PORT ?? 3177)
 
 export default defineConfig({
   testDir: './test/e2e',
@@ -55,10 +57,20 @@ export default defineConfig({
     // { name: 'webkit', use: { ...devices['Desktop Safari'] } },
   ],
   // 被测对象必须是构建产物（Nitro server）：复用已有服务会让 dev server 顶替，测出的结论不可信
-  webServer: {
-    command: `PORT=${port} npm run preview`,
-    url: `http://localhost:${port}`,
-    reuseExistingServer: false,
-    timeout: 120_000,
-  },
+  // 联邦用例需要两个同源独立的服务：宿主 Nitro + provider 静态产物（见 scripts/serve-mf.mjs）
+  webServer: [
+    {
+      command: `PORT=${mfPort} node scripts/serve-mf.mjs`,
+      // 就绪检查必须打真实文件：静态根路径没有 index，404 会把 Playwright 的等待卡到超时
+      url: `http://localhost:${mfPort}/_nuxt/remoteEntry.js`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 30_000,
+    },
+    {
+      command: `PORT=${port} NUXT_PUBLIC_MF_HOSTS=vue_scaffold@http://localhost:${mfPort}/_nuxt/remoteEntry.js npm run preview`,
+      url: `http://localhost:${port}`,
+      reuseExistingServer: false,
+      timeout: 120_000,
+    },
+  ],
 })

@@ -13,6 +13,8 @@ const layout = {
         scaffold: '脚手架',
         demo: 'Demo 首页',
         chat: 'AI 聊天',
+        federation: '联邦演示',
+        remotePage: '远程页面',
     },
     profile: {
         info: '个人信息',
@@ -26,6 +28,8 @@ const common = {
     empty: '暂无数据',
     requestCanceled: '请求已取消',
     noValue: '—',
+    remoteNotConfigured: '未配置联邦宿主（NUXT_PUBLIC_MF_HOSTS 为空）',
+    remoteLoadFailed: '远程组件加载失败，请确认提供方在线且版本匹配',
 } as const
 
 const error = {
@@ -90,6 +94,15 @@ const pages = {
         intro: '本页是 websocket 封装的示例消费方：历史走信封 ack 配对，发送 fire-and-forget，回复由服务端按 start/delta/done 流式推送（mock 模式由纯前端替身模拟，不建真实连接）。订阅建立后不发一句话，AI 也会主动推一条——留意自动出现的气泡。',
         placeholder: '给 AI 发消息，回车发送',
         send: '发送',
+    },
+    federation: {
+        title: '联邦演示',
+        intro: '下方卡片里的组件由另一个同源项目（VITE_MF=provider 构建）在浏览器运行时加载：props 纯 JSON 进、事件出，宿主 ssr:true 与远程渲染互不干扰。宿主清单为空时出"未配置"空态；提供方离线时出失败态并可重试。',
+        widgetTitle: '远程组件（HelloWidget）',
+        picked: '远程组件回传：{item}',
+    },
+    remoteAbout: {
+        title: '远程页面',
     },
     notFound: {
         title: '页面不存在',

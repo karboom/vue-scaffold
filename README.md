@@ -23,6 +23,7 @@
 - [WebSocket 能力](#websocket-能力)
 - [日志与错误上报](#日志与错误上报)
 - [渲染模式与 SSR](#渲染模式与-ssr)
+- [模块联邦](#模块联邦)
 - [测试](#测试)
 - [脚本与环境变量](#脚本与环境变量)
 - [构建与部署](#构建与部署)
@@ -157,14 +158,19 @@ src/                # 页面、组件、store、api、适配层都在这里
 ├─ api/             # client.ts 应用级 http + socket｜types 仅类型｜real 真实实现｜mock 同签名替身
 ├─ i18n/            # index.ts 装配｜locales/zh-CN.ts 文案与类型真源｜en-US.ts 受 MessageSchema 约束
 ├─ components/
-│  ├─ action/       # ReadData / Detail / Confirm / Button
+│  ├─ action/       # ReadData / Detail / Confirm / Button（一类交互一个组件）
+│  ├─ federation/   # Remote.vue：远程模块加载壳；RemotePage.vue：远程路由通用桩（排除自动注册）
 │  └─ layouts/      # default.vue + 布局 store
-├─ pages/           # index / login / chat（各带同名 store.ts）+ [...path].vue 兜底页
+├─ pages/           # index / login / chat / federation（各带同名 store.ts）+ [...path].vue 兜底页
+│                   # （/remote-about 由 remote-routes 清单直写，无页面文件——见「路由表直写远程」）
+├─ federation/      # VITE_MF=provider 时被 expose 的远程组件（自包含，禁 import 宿主 internals）
 ├─ adapter/         # 宿主能力与 Nuxt 接线，业务代码不混进来
 │  ├─ platform.ts   # 契约 + 浏览器默认实现（@/platform 指向这里）
+│  ├─ remote.ts     # 联邦宿主 runtime：清单解析、init 幂等、loadRemote → 组件归一
+│  ├─ mf-manifest.ts # 远程路由清单纯逻辑：校验 + 桩路由组装（单测直打）
 │  ├─ plugins/      # platform / http / i18n / error / log-report / ssr-payload
 │  ├─ middleware/   # auth.global.ts：requiresAuth 守卫
-│  └─ modules/      # route-blocks.ts：<route> 块桥接、野路由过滤、alias 重排
+│  └─ modules/      # route-blocks / federation / remote-routes（开关式构建期模块）
 ├─ utils/           # io / http / websocket / mock / data / log / browser / time
 └─ store.ts         # session store（token + 语言真源 locale）
 
@@ -482,6 +488,77 @@ await callOnce('index:list', () => indexPage.fetchList())
 
 `callOnce` 服务端执行一次并等待，客户端首屏不重复请求，数据仍落进 store 的 `IOCtx`，`ReadData :io` 契约不用动。没迁的页面不会报错，只是首屏仍是骨架，可以逐页迁。
 
+## 模块联邦
+
+同一份代码用两个环境变量切换身份：作为**提供方**把自己的组件 expose 出去给别的项目远程加载，作为**宿主**消费别人的远程组件。默认 `off`，不注入任何联邦逻辑，产物与纯应用逐字节一致——和 `VITE_API_MOCK` 的 real/mock 开关同一"默认态无感"承诺。
+
+| 角色 | 开关 | 机制 |
+|---|---|---|
+| 提供方 | `VITE_MF=provider` | `federation` 模块扫描 `src/federation/*.vue` 自动生成 exposes，**只在客户端构建**注入 `@module-federation/vite` 插件，产物多出 `remoteEntry.js` |
+| 宿主 | `NUXT_PUBLIC_MF_HOSTS` | `<ClientOnly>` 边界内用 `@module-federation/runtime` 的 `loadRemote` 拉远程组件；清单是运行期配置，远程换版本不必重建宿主 |
+
+### 为什么用 `<ClientOnly>`：SSR 与联邦的硬边界
+
+联邦消费一律走 `src/components/federation/Remote.vue` 壳，它包在 `<ClientOnly>` 里——**远程 bundle 只在宿主浏览器解析，服务端永不执行**。这一条纪律让 `ssr: true` 与模块联邦零冲突：SSR payload 序列化、每请求 i18n、`@/platform` 契约三大适配都不认识 remote，也就不必为它改动。代价是远程组件不进 SSR 首帧（首屏出骨架），需要内容级首屏的远程页翻 `routeRules` 单独关 SSR。
+
+提供方侧同理：`federation` 模块只在客户端构建注入插件，Nitro / SSR 产物保持原样。
+
+### 提供方：加一个目录即多一个 expose
+
+```vue
+<!-- src/federation/HelloWidget.vue：文件名即远程模块名（vue_scaffold/HelloWidget） -->
+<script lang="ts" setup>
+// 自包含纪律：显式 import vue、props/events 纯 JSON、不碰宿主 internals
+import { onMounted } from 'vue'
+const props = defineProps<{ title: string; items: string[] }>()
+const emit = defineEmits<{ select: [item: string] }>()
+</script>
+```
+
+```bash
+VITE_MF=provider npm run build   # .output/public/_nuxt/remoteEntry.js
+```
+
+ESLint `app/federation-self-contained` 拦住 expose 组件反向 `import '@/api'`、`'@/platform'` 等宿主 internals——联邦边界只走纯数据，real/mock alias、store、i18n 实例都不许跨越。
+
+### 宿主：`federation/Remote.vue` 加载壳四态
+
+不在 `action/`——action 封装的是"一类交互"的表现收敛，而 `Remote` 管的是远程模块的**加载与 SSR 边界**，是装配期关注点，与交互动效无关。
+
+```html
+<Remote remote="vue_scaffold/HelloWidget" :title="..." :items="local.items" @select="page.pick" />
+```
+
+壳固定未配置（`NUXT_PUBLIC_MF_HOSTS` 空）/ 加载中骨架 / 失败可重试 / 成功四态，页面只声明远程路径与透传数据（`$attrs` 原样进远程组件，`@select` 之类监听器随 attribute 一起落下去）。`src/adapter/remote.ts` 幂等 `init` runtime、按 path 缓存、`normalizeRemoteModule` 适配 vite 远程"get 返回工厂"的协议形态。
+
+### 路由表直写远程：RemotePage 本地桩
+
+路由链路（`pages:extend`、SSR 路由记录、路由宏）只认本地文件，远程模块构建期不存在——但清单可以把"直写"的体验做出来。`src/adapter/modules/remote-routes.ts` 消费 `nuxt.config` 里的清单：
+
+```ts
+['./src/adapter/modules/remote-routes', {
+    routes: [{
+        path: '/remote-about',                          // 归宿主路由体系：守卫/标题/404 全通用
+        mf: 'vue_scaffold/AboutCard',                   // 远程坐标：容器名/模块
+        props: { /* 可选：静态纯 JSON，经路由记录序列化 */ },
+        meta: { titleKey: 'pages.remoteAbout.title', requiresAuth: false },
+    }],
+}]
+```
+
+每条声明生成一条指向**同一个本地桩** `src/components/federation/RemotePage.vue` 的路由记录（与加载壳同目录，但对组件自动注册排除——它是路由桩，不是拿来摆进模板的组件）；桩只做搬运——`route.meta.mf` 交给 `<Remote>` 壳、`mfProps` 原样 `v-bind`，按坐标 `:key` 强制重挂。撞路径、缺 `容器名/模块`、清单内重复都在构建期直接抛（配置错误不留成运行时的"未配置"空态）。
+
+| 分层 | 时机 | 变量 |
+|---|---|---|
+| 远程路由清单 | 构建期烤入（SSR 直闯不 404 的前提） | nuxt.config 的 routes |
+| 远程入口地址 | 运行期可覆盖（远程换版不重建宿主） | `NUXT_PUBLIC_MF_HOSTS` |
+
+远程页面示例 `src/federation/AboutCard.vue`：零 props、自带文案（联邦边界用不了宿主 i18n，远程自带词典是合法姿势）；带数据的页面参照 `HelloWidget`。
+
+### 双服务 e2e
+
+联邦用例是真链路：`npm run test:e2e` 先 `build:mf` 把 provider 产物快照到 `.mf-dist/`，Playwright `webServer` 同时起宿主 Nitro（:3173，注入 `NUXT_PUBLIC_MF_HOSTS`）与 provider 静态服务（`scripts/serve-mf.mjs`，带 CORS，:3177），`test/e2e/federation.spec.ts` 验证跨源加载、事件回传、以及"远程不进 SSR HTML"这条边界。
+
 ## 测试
 
 ```text
@@ -494,12 +571,15 @@ test/unit/pages/login.spec.ts     # 登录 store：多方式登录、验证码�
 test/unit/pages/chat.spec.ts      # 聊天 store：流式 reducer、合并播种、在途拒发、退订幂等
 test/unit/pages/index.spec.ts     # 首页 store：详情抽屉编排、骨架归零、保存后收抽屉
 test/unit/utils/log.spec.ts       # error 上报槽位：未注入零开销、只喂 error、上报器炸了不外抛
+test/unit/adapter/remote.spec.ts  # 联邦宿主：清单解析、工厂形态归一、init 幂等、失败不入缓存
+test/unit/adapter/mf-manifest.spec.ts # 远程路由清单：组装、name 归一、校验抛错
 test/e2e/example.spec.ts          # 首页布局冒烟 + 四件套链路（Button → Detail → ReadData → Confirm）
 test/e2e/login.spec.ts            # 四条登录链路（route 桩把 method 回显进 token）
 test/e2e/not-found.spec.ts        # 404 兜底页
 test/e2e/logout.spec.ts           # 退出登录跳转
 test/e2e/locale.spec.ts           # 中英切换：文案 / 标题 / html lang / 持久化
 test/e2e/chat.spec.ts             # AI 聊天：信封 ack 历史 + routeWebSocket 桩流式回复
+test/e2e/federation.spec.ts       # 联邦：跨源加载、事件回传、路由清单直写（meta/标题生效）、远程不进 SSR HTML
 test/e2e/visual/pages.spec.ts     # 视觉回归基线（login / 列表 / 详情抽屉 / 聊天 / 404）
 ```
 
@@ -522,6 +602,7 @@ test/e2e/visual/pages.spec.ts     # 视觉回归基线（login / 列表 / 详情
 |---|---|
 | `npm run dev` | 开发服务器（3173） |
 | `npm run build` | Nitro 服务端构建 → `.output/`（默认部署形态） |
+| `npm run build:mf` | 联邦 provider 构建（`VITE_MF=provider`）并快照到 `.mf-dist/` |
 | `npm run preview` | 跑 Nitro server（3173） |
 | `npm run generate` | 静态构建（SSG）→ `.output/public/` |
 | `npm run typecheck` | `nuxt typecheck` |
@@ -541,6 +622,8 @@ test/e2e/visual/pages.spec.ts     # 视觉回归基线（login / 列表 / 详情
 | `VITE_API_MOCK` | `off` | `on` 时仅 `@/api` 域实现指向 mock（传输层不替换） |
 | `VITE_WS_URL` | `/user` | socket.io 连接地址 |
 | `VITE_LOG_REPORT_URL` | 空 | `log.error` 上报地址（相对 `VITE_API_BASE` 的路径或绝对地址）；留空即关闭上报 |
+| `VITE_MF` | `off` | 联邦身份开关（构建期）：`provider` 时扫描 `src/federation/*.vue` 注入 exposes；`off` 时产物与纯应用一致 |
+| `VITE_MF_HOSTS` / `NUXT_PUBLIC_MF_HOSTS` | 空 | 联邦宿主清单 `name@entryUrl` 逗号分隔；运行期变量优先，留空 = 不加载远程组件 |
 
 ## 构建与部署
 
@@ -609,6 +692,9 @@ docker run --init -p 3173:3173 front-web:<hash>-ssr
 - 时间与数字同理：store 与 api 只存后端原值，`d()` / `n()` 在模板或插槽里调用。格式化串写进 state 就不会随语言和格式档刷新，SSR 还会把它烙进 payload。
 - 时间串只走 `parseDateTime`：不在页面 `new Date(串)`，也不绕过它直接调 luxon——形状门禁那道工序不能跳。
 - 第三方库的全局静态（luxon 的 `Settings.defaultZone` / `defaultLocale`）不许改：SSR 下模块作用域跨请求共享，改了就是把 A 请求的时区串给 B。这类值只按调用传参。
+- 联邦远程组件（`src/federation/`）必须自包含：显式 `import` vue、props/events 只用可序列化 JSON、不 `import '@/api'`、`'@/platform'`、`'@/i18n'`、`'@/store'`、`vue-router`、`vue-i18n`（ESLint `app/federation-self-contained` 强制）。数据由宿主拉好传入，远程不回读宿主 internals。
+- 联邦消费一律走 `Remote.vue` 壳，不在页面直连 `@module-federation/runtime`；远程代码只在浏览器解析，服务端永不执行。
+
 - 语言切换只走 `session.setLocale`，`<html lang>` 与标题的副作用集中在壳层。
 
 约定的机器可读真源在 `.agents/skills/vue-scaffold/SKILL.md`，改约定请两处同步。

@@ -47,6 +47,8 @@ export type LayoutState = {
 const menuMap = new Map<string, MenuItem>([
     ['demo', { key: 'demo', labelKey: 'layout.menu.demo', icon: 'gauge', path: '/' }],
     ['chat', { key: 'chat', labelKey: 'layout.menu.chat', icon: 'bot', path: '/chat' }],
+    ['federation', { key: 'federation', labelKey: 'layout.menu.federation', icon: 'blocks', path: '/federation' }],
+    ['remote-page', { key: 'remote-page', labelKey: 'layout.menu.remotePage', icon: 'puzzle', path: '/remote-about' }],
 ])
 
 // 2 级菜单树：脚手架演示
@@ -55,7 +57,7 @@ const menuGroups: MenuGroup[] = [
         key: 'demo-group',
         labelKey: 'layout.menu.scaffold',
         icon: 'gauge',
-        children: [menuMap.get('demo')!, menuMap.get('chat')!],
+        children: [menuMap.get('demo')!, menuMap.get('chat')!, menuMap.get('federation')!, menuMap.get('remote-page')!],
     },
 ]
 

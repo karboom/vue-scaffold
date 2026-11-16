@@ -11,6 +11,8 @@ export const enUS: MessageSchema = {
         empty: 'No data',
         requestCanceled: 'Request canceled',
         noValue: '—',
+        remoteNotConfigured: 'No federation host configured (NUXT_PUBLIC_MF_HOSTS is empty)',
+        remoteLoadFailed: 'Failed to load the remote component; make sure the provider is online and versions match',
     },
     layout: {
         search: 'Search',
@@ -22,6 +24,8 @@ export const enUS: MessageSchema = {
             scaffold: 'Scaffold',
             demo: 'Demo home',
             chat: 'AI Chat',
+            federation: 'Federation demo',
+            remotePage: 'Remote page',
         },
         profile: {
             info: 'Profile',
@@ -89,6 +93,15 @@ export const enUS: MessageSchema = {
             intro: 'This page exercises the websocket wrapper end to end: history over an envelope ack, sending is fire-and-forget, replies stream in as start/delta/done pushes (in mock mode a pure front-end fake, no real connection). Stay subscribed without sending anything and the AI will still start a conversation on its own.',
             placeholder: 'Message the AI, Enter to send',
             send: 'Send',
+        },
+        federation: {
+            title: 'Federation demo',
+            intro: 'The component inside the card below is fetched at runtime by the browser from a sibling project built with VITE_MF=provider: plain JSON props go in, events come out, and the host keeps ssr:true without touching remote rendering. With an empty host list you get the "not configured" state; if the provider is offline you get a retryable error.',
+            widgetTitle: 'Remote component (HelloWidget)',
+            picked: 'Remote component reported: {item}',
+        },
+        remoteAbout: {
+            title: 'Remote page',
         },
         notFound: {
             title: 'Page not found',

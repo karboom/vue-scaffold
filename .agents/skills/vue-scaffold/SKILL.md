@@ -14,7 +14,7 @@ description: 写代码前必须遵循规范要求
 
 # 行为习惯
 * 根据图片生成页面时需要：vue3 + pinia options表示的state和对应的type(非interface)
-
+* 默认不执行测试用例
 
 # 交互
 * store中的IOState对应的数据渲染，都要增加loading状态和空状态展示

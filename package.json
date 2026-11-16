@@ -11,13 +11,14 @@
     "postinstall": "nuxt prepare",
     "dev": "nuxt dev",
     "build": "nuxt build",
+    "build:mf": "VITE_MF=provider nuxt build && node scripts/snapshot-mf.mjs",
     "generate": "nuxt generate",
     "preview": "PORT=${PORT:-3173} node .output/server/index.mjs",
     "typecheck": "nuxt typecheck",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
-    "test:e2e": "npm run build && playwright test",
-    "test:e2e:ui": "npm run build && playwright test --ui",
+    "test:e2e": "npm run build:mf && npm run build && playwright test",
+    "test:e2e:ui": "npm run build:mf && npm run build && playwright test --ui",
     "test:visual": "playwright test --project=visual",
     "test:visual:update": "playwright test --project=visual --update-snapshots",
     "test:e2e:report": "playwright show-report",
@@ -28,6 +29,7 @@
   },
   "dependencies": {
     "@iconify-json/lucide": "^1.2.148",
+    "@module-federation/runtime": "^2.9.3",
     "@nuxt/ui": "^4.12.0",
     "@tanstack/vue-table": "^8.21.3",
     "axios": "^1.20.0",
@@ -42,6 +44,7 @@
     "vue-router": "^5.4.0"
   },
   "devDependencies": {
+    "@module-federation/vite": "^1.23.11",
     "@pinia/nuxt": "^1.0.3",
     "@playwright/test": "^1.64.1",
     "@types/jsdom": "^21.1.1",
